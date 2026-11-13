@@ -8,16 +8,24 @@ import logoUrl from './assets/workshops.svg'
 
 const bookings: Array<Booking> = [...initialBookings]
 
-function readSeats(raw: FormDataEntryValue | null): number | null {
-  if (typeof raw !== 'string' || raw.trim() === '') return null
+type Result<T> = { ok: true; value: T } | { ok: false; error: string }
+
+function readSeats(raw: FormDataEntryValue | null): Result<number> {
+  if (typeof raw !== 'string' || raw.trim() === '') {
+    return { ok: false, error: 'Введите целое число участников от 1 до 5.' }
+  }
   const seats = Number(raw)
-  if (!Number.isInteger(seats) || seats < 1 || seats > 5) return null
-  return seats
+  if (!Number.isInteger(seats) || seats < 1 || seats > 5) {
+    return { ok: false, error: 'Введите целое число участников от 1 до 5.' }
+  }
+  return { ok: true, value: seats }
 }
 
-function readWorkshop(raw: FormDataEntryValue | null): WorkshopId | null {
-  if (raw === 'typescript' || raw === 'build') return raw
-  return null
+function readWorkshop(raw: FormDataEntryValue | null): Result<WorkshopId> {
+  if (raw === 'typescript' || raw === 'build') {
+    return { ok: true, value: raw }
+  }
+  return { ok: false, error: 'Выберите занятие из списка.' }
 }
 
 const app = document.querySelector<HTMLDivElement>('#app')
@@ -142,17 +150,20 @@ ui.form.addEventListener('submit', (event) => {
     return
   }
 
-  const seats = readSeats(data.get('seats'))
-  if (seats === null) {
-    ui.message.textContent = 'Введите целое число участников от 1 до 5.'
+  const seatsResult = readSeats(data.get('seats'))
+  if (!seatsResult.ok) {
+    ui.message.textContent = seatsResult.error
     return
   }
 
-  const selectedWorkshop = readWorkshop(data.get('workshop'))
-  if (selectedWorkshop === null) {
-    ui.message.textContent = 'Выберите занятие из списка.'
+  const workshopResult = readWorkshop(data.get('workshop'))
+  if (!workshopResult.ok) {
+    ui.message.textContent = workshopResult.error
     return
   }
+
+  const seats = seatsResult.value
+  const selectedWorkshop = workshopResult.value
 
   const remaining = getRemainingSeats(bookings, selectedWorkshop)
   if (seats > remaining) {
